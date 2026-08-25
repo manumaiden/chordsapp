@@ -1,0 +1,79 @@
+{
+  "extDescription": { "message": "Accordi chitarra direttamente mentre guardi YouTube" },
+  "actionTitle": { "message": "ChordsApp — Apri pannello accordi" },
+
+  "libraryButton": { "message": "Preferiti e recenti" },
+  "searchPlaceholder": { "message": "Cerca canzone o artista..." },
+  "searchButton": { "message": "Cerca" },
+  "idleMessageLine1": { "message": "Apri un video YouTube e clicca l'icona dell'estensione." },
+  "idleMessageLine2": { "message": "Gli accordi appariranno qui automaticamente." },
+
+  "libraryTitle": { "message": "Libreria" },
+  "favoritesLabel": { "message": "Preferiti" },
+  "recentsLabel": { "message": "Recenti" },
+  "playstatsLabel": { "message": "Più suonate" },
+  "favoritesEmpty": { "message": "Nessun preferito salvato." },
+  "recentsEmpty": { "message": "Nessuna canzone recente." },
+  "playstatsEmpty": { "message": "Nessuna statistica ancora." },
+  "exportLibrary": { "message": "Esporta libreria (JSON)" },
+  "importLibrary": { "message": "Importa libreria (JSON)" },
+  "importFileAriaLabel": { "message": "Seleziona file libreria da importare" },
+  "close": { "message": "Chiudi" },
+
+  "loadingMessage": { "message": "Cerco gli accordi..." },
+  "errorFallbackPrompt": { "message": "Prova a cercare manualmente su:" },
+  "multipleResultsHint": { "message": "Trovati più risultati — scegli:" },
+  "searchOnUG": { "message": "Cerca su Ultimate Guitar…" },
+  "openOriginalPage": { "message": "Apri pagina originale" },
+
+  "keyLabel": { "message": "Tonalità" },
+  "transposeDown": { "message": "Scendi di un semitono" },
+  "transposeUp": { "message": "Sali di un semitono" },
+  "transposeReset": { "message": "Reimposta tonalità" },
+  "scrollLabel": { "message": "Scorrimento" },
+  "scrollSlower": { "message": "Rallenta scorrimento" },
+  "scrollPlayPause": { "message": "Avvia / Pausa scorrimento automatico" },
+  "scrollPlayAria": { "message": "Avvia lo scorrimento automatico" },
+  "scrollPauseAria": { "message": "Metti in pausa lo scorrimento automatico" },
+  "scrollFaster": { "message": "Accelera scorrimento" },
+  "addToFavorites": { "message": "Aggiungi ai preferiti" },
+  "removeFromFavorites": { "message": "Rimuovi dai preferiti" },
+  "fontDecrease": { "message": "Riduci dimensione testo" },
+  "fontIncrease": { "message": "Ingrandisci dimensione testo" },
+
+  "remove": { "message": "Rimuovi" },
+  "removeItemAria": {
+    "message": "Rimuovi $ITEM$ dalla lista",
+    "placeholders": { "item": { "content": "$1" } }
+  },
+  "genericItem": { "message": "voce" },
+
+  "chordsNotFoundFor": {
+    "message": "Accordi non trovati per \"$QUERY$\"",
+    "placeholders": { "query": { "content": "$1" } }
+  },
+  "contentUnavailable": { "message": "Contenuto non disponibile" },
+  "unknownTitle": { "message": "Titolo sconosciuto" },
+
+  "exportSummary": {
+    "message": "Esportate $FAV$ preferiti, $REC$ recenti, $STAT$ statistiche.",
+    "placeholders": {
+      "fav": { "content": "$1" },
+      "rec": { "content": "$2" },
+      "stat": { "content": "$3" }
+    }
+  },
+  "importSummary": {
+    "message": "Importazione completata: $FAV$ preferiti, $REC$ recenti, $STAT$ statistiche.",
+    "placeholders": {
+      "fav": { "content": "$1" },
+      "rec": { "content": "$2" },
+      "stat": { "content": "$3" }
+    }
+  },
+  "importFormatError": { "message": "File non riconosciuto come libreria ChordsApp" },
+  "importFailedPrefix": {
+    "message": "Import fallito: $ERROR$",
+    "placeholders": { "error": { "content": "$1" } }
+  }
+}

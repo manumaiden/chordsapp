@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ChordsApp</title>
+  <link rel="stylesheet" href="panel.css">
+</head>
+<body>
+  <div id="app">
+
+    <header>
+      <div class="header-top">
+        <div class="logo-block">
+          <div class="logo">ChordsApp</div>
+          <div class="version-tag" id="version-tag"></div>
+        </div>
+        <button id="library-btn" class="btn-icon" data-i18n-title="libraryButton" data-i18n-aria-label="libraryButton">☰</button>
+      </div>
+      <div class="search-bar">
+        <input type="text" id="search-input" data-i18n-placeholder="searchPlaceholder" autocomplete="off" spellcheck="false">
+        <button id="search-btn" data-i18n="searchButton"></button>
+      </div>
+    </header>
+
+    <!-- Stato: in attesa -->
+    <div id="state-idle" class="state">
+      <div class="state-icon">♪</div>
+      <p><span data-i18n="idleMessageLine1"></span><br><span data-i18n="idleMessageLine2"></span></p>
+      <div id="idle-library" class="idle-library hidden">
+        <div id="idle-favorites-section" class="library-section hidden">
+          <p class="library-section-title">★ <span data-i18n="favoritesLabel"></span></p>
+          <ul id="idle-favorites-list" class="results-list"></ul>
+        </div>
+        <div id="idle-recents-section" class="library-section hidden">
+          <p class="library-section-title">🕘 <span data-i18n="recentsLabel"></span></p>
+          <ul id="idle-recents-list" class="results-list"></ul>
+        </div>
+        <div id="idle-playstats-section" class="library-section hidden">
+          <p class="library-section-title">🔥 <span data-i18n="playstatsLabel"></span></p>
+          <ul id="idle-playstats-list" class="results-list"></ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- Stato: libreria (preferiti/recenti) -->
+    <div id="state-library" class="state hidden">
+      <div class="library-topbar">
+        <span class="library-title" data-i18n="libraryTitle"></span>
+        <div class="library-io">
+          <button id="library-export-btn" class="btn-icon" data-i18n-title="exportLibrary" data-i18n-aria-label="exportLibrary">⬇</button>
+          <button id="library-import-btn" class="btn-icon" data-i18n-title="importLibrary" data-i18n-aria-label="importLibrary">⬆</button>
+          <input type="file" id="library-import-input" accept="application/json" class="hidden" data-i18n-aria-label="importFileAriaLabel">
+        </div>
+        <button id="library-close" class="btn-icon" data-i18n-title="close" data-i18n-aria-label="close">✕</button>
+      </div>
+      <p id="library-io-status" class="library-io-status hidden"></p>
+      <div class="library-section">
+        <p class="library-section-title">★ <span data-i18n="favoritesLabel"></span></p>
+        <ul id="favorites-list" class="results-list"></ul>
+        <p id="favorites-empty" class="library-empty" data-i18n="favoritesEmpty"></p>
+      </div>
+      <div class="library-section">
+        <p class="library-section-title">🕘 <span data-i18n="recentsLabel"></span></p>
+        <ul id="recents-list" class="results-list"></ul>
+        <p id="recents-empty" class="library-empty" data-i18n="recentsEmpty"></p>
+      </div>
+      <div class="library-section">
+        <p class="library-section-title">🔥 <span data-i18n="playstatsLabel"></span></p>
+        <ul id="playstats-list" class="results-list"></ul>
+        <p id="playstats-empty" class="library-empty" data-i18n="playstatsEmpty"></p>
+      </div>
+    </div>
+
+    <!-- Stato: caricamento -->
+    <div id="state-loading" class="state hidden">
+      <div class="spinner"></div>
+      <p data-i18n="loadingMessage"></p>
+    </div>
+
+    <!-- Stato: errore -->
+    <div id="state-error" class="state hidden">
+      <div class="state-icon">?</div>
+      <p id="error-msg"></p>
+      <div id="fallback-links" class="fallback-links hidden">
+        <span data-i18n="errorFallbackPrompt"></span>
+        <a id="ug-link" href="#" target="_blank">Ultimate Guitar</a>
+      </div>
+    </div>
+
+    <!-- Stato: lista risultati multipli -->
+    <div id="state-results" class="state hidden">
+      <p class="results-hint" data-i18n="multipleResultsHint"></p>
+      <ul id="results-list" class="results-list"></ul>
+    </div>
+
+    <!-- Stato: risultato -->
+    <div id="state-result" class="hidden">
+      <div class="result-header">
+        <div class="result-info">
+          <h2 id="song-title"></h2>
+          <p id="song-artist"></p>
+        </div>
+        <div class="result-meta">
+          <span class="source-badge" id="source-badge"></span>
+          <a class="source-link" id="source-link" href="#" target="_blank" data-i18n-title="openOriginalPage" data-i18n-aria-label="openOriginalPage">↗</a>
+        </div>
+      </div>
+
+      <div class="controls">
+        <!-- Traspositore -->
+        <div class="ctrl-group">
+          <span class="ctrl-tag" data-i18n="keyLabel"></span>
+          <button id="transpose-down" data-i18n-title="transposeDown" data-i18n-aria-label="transposeDown">−</button>
+          <span id="transpose-value">0</span>
+          <button id="transpose-up" data-i18n-title="transposeUp" data-i18n-aria-label="transposeUp">+</button>
+          <button id="transpose-reset" class="btn-reset" data-i18n-title="transposeReset" data-i18n-aria-label="transposeReset">↺</button>
+        </div>
+
+        <div class="ctrl-sep"></div>
+
+        <!-- Auto-scroll -->
+        <div class="ctrl-group">
+          <span class="ctrl-tag" data-i18n="scrollLabel"></span>
+          <button id="scroll-slower" data-i18n-title="scrollSlower" data-i18n-aria-label="scrollSlower">−</button>
+          <button id="scroll-play" data-i18n-title="scrollPlayPause" data-i18n-aria-label="scrollPlayAria">▶</button>
+          <span id="scroll-speed-val"></span>
+          <button id="scroll-faster" data-i18n-title="scrollFaster" data-i18n-aria-label="scrollFaster">+</button>
+        </div>
+
+        <div class="ctrl-sep"></div>
+
+        <!-- Preferiti e dimensione testo -->
+        <div class="ctrl-group">
+          <button id="favorite-toggle" class="btn-icon" data-i18n-title="addToFavorites" data-i18n-aria-label="addToFavorites">☆</button>
+          <button id="font-decrease" class="btn-icon" data-i18n-title="fontDecrease" data-i18n-aria-label="fontDecrease">A−</button>
+          <button id="font-increase" class="btn-icon" data-i18n-title="fontIncrease" data-i18n-aria-label="fontIncrease">A+</button>
+        </div>
+      </div>
+
+      <div id="chords-content"></div>
+    </div>
+
+  </div>
+  <script src="panel.js"></script>
+</body>
+</html>

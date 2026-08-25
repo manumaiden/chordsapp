@@ -1,0 +1,8 @@
+{
+  "name": "chordsapp",
+  "private": true,
+  "description": "Chrome extension — guitar chords on YouTube (pure-logic tests, not part of the extension package)",
+  "scripts": {
+    "test": "node --test"
+  }
+}

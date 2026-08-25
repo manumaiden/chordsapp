@@ -1,0 +1,79 @@
+{
+  "extDescription": { "message": "Guitar chords right while you watch YouTube" },
+  "actionTitle": { "message": "ChordsApp — Open chords panel" },
+
+  "libraryButton": { "message": "Favorites and recents" },
+  "searchPlaceholder": { "message": "Search song or artist..." },
+  "searchButton": { "message": "Search" },
+  "idleMessageLine1": { "message": "Open a YouTube video and click the extension icon." },
+  "idleMessageLine2": { "message": "Chords will appear here automatically." },
+
+  "libraryTitle": { "message": "Library" },
+  "favoritesLabel": { "message": "Favorites" },
+  "recentsLabel": { "message": "Recent" },
+  "playstatsLabel": { "message": "Most played" },
+  "favoritesEmpty": { "message": "No favorites saved yet." },
+  "recentsEmpty": { "message": "No recent songs." },
+  "playstatsEmpty": { "message": "No stats yet." },
+  "exportLibrary": { "message": "Export library (JSON)" },
+  "importLibrary": { "message": "Import library (JSON)" },
+  "importFileAriaLabel": { "message": "Select library file to import" },
+  "close": { "message": "Close" },
+
+  "loadingMessage": { "message": "Looking up chords..." },
+  "errorFallbackPrompt": { "message": "Try searching manually on:" },
+  "multipleResultsHint": { "message": "Multiple results found — choose one:" },
+  "searchOnUG": { "message": "Search on Ultimate Guitar…" },
+  "openOriginalPage": { "message": "Open original page" },
+
+  "keyLabel": { "message": "Key" },
+  "transposeDown": { "message": "Down one semitone" },
+  "transposeUp": { "message": "Up one semitone" },
+  "transposeReset": { "message": "Reset key" },
+  "scrollLabel": { "message": "Scroll" },
+  "scrollSlower": { "message": "Slow down scrolling" },
+  "scrollPlayPause": { "message": "Start / pause auto-scroll" },
+  "scrollPlayAria": { "message": "Start auto-scroll" },
+  "scrollPauseAria": { "message": "Pause auto-scroll" },
+  "scrollFaster": { "message": "Speed up scrolling" },
+  "addToFavorites": { "message": "Add to favorites" },
+  "removeFromFavorites": { "message": "Remove from favorites" },
+  "fontDecrease": { "message": "Decrease text size" },
+  "fontIncrease": { "message": "Increase text size" },
+
+  "remove": { "message": "Remove" },
+  "removeItemAria": {
+    "message": "Remove $ITEM$ from the list",
+    "placeholders": { "item": { "content": "$1" } }
+  },
+  "genericItem": { "message": "item" },
+
+  "chordsNotFoundFor": {
+    "message": "Chords not found for \"$QUERY$\"",
+    "placeholders": { "query": { "content": "$1" } }
+  },
+  "contentUnavailable": { "message": "Content unavailable" },
+  "unknownTitle": { "message": "Unknown title" },
+
+  "exportSummary": {
+    "message": "Exported $FAV$ favorites, $REC$ recents, $STAT$ stats.",
+    "placeholders": {
+      "fav": { "content": "$1" },
+      "rec": { "content": "$2" },
+      "stat": { "content": "$3" }
+    }
+  },
+  "importSummary": {
+    "message": "Import complete: $FAV$ favorites, $REC$ recents, $STAT$ stats.",
+    "placeholders": {
+      "fav": { "content": "$1" },
+      "rec": { "content": "$2" },
+      "stat": { "content": "$3" }
+    }
+  },
+  "importFormatError": { "message": "File not recognized as a ChordsApp library" },
+  "importFailedPrefix": {
+    "message": "Import failed: $ERROR$",
+    "placeholders": { "error": { "content": "$1" } }
+  }
+}
