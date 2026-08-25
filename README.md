@@ -2,6 +2,16 @@
 
 A Chrome extension that shows guitar chords in a side panel while you watch YouTube. One browser, no duplicate tabs.
 
+## In action
+
+Automatic chord detection, right next to the video — switch videos and the chords update on their own:
+
+![ChordsApp in action](docs/screenshots/demo.gif)
+
+The library (☰) keeps favorites, recent songs, and most played — all stored locally, no account needed:
+
+![ChordsApp library](docs/screenshots/library-demo.png)
+
 ## Features
 
 - Automatically detects the YouTube video title
