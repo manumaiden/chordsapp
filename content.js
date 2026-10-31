@@ -16,8 +16,8 @@
       const el = document.querySelector(sel);
       if (el?.textContent?.trim()) return el.textContent.trim();
     }
-    // Fallback: document.title with " - YouTube" stripped
-    const t = document.title.replace(/ - YouTube$/, '').trim();
+    // Fallback: document.title with the "(3) " notification counter and " - YouTube" stripped
+    const t = document.title.replace(/^\(\d+\)\s*/, '').replace(/ - YouTube$/, '').trim();
     return t !== 'YouTube' ? t : '';
   }
 
@@ -28,9 +28,20 @@
   }
 
   function tryNotify() {
+    // Only the visible tab drives the panel (a background tab's autoplay must not
+    // replace the song being played), and only on video pages (channel/search/home
+    // titles are not songs).
+    if (document.hidden || location.pathname !== '/watch') return;
     const title = extractTitle();
     if (title) sendTitle(title);
   }
+
+  // Switching back to a tab makes its video the current one again
+  // (lastSentTitle reset: another tab may have changed the panel's song meanwhile)
+  document.addEventListener('visibilitychange', () => {
+    lastSentTitle = '';
+    tryNotify();
+  });
 
   // YouTube is an SPA: listen for the native navigation event
   window.addEventListener('yt-navigate-finish', () => {

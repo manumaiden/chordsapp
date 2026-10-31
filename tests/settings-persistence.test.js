@@ -67,6 +67,28 @@ test('font size and per-song key persistence', async (t) => {
     assert.equal(panel.state.transpose, -2);
   });
 
+  await t.test('anti race-condition guard: a stale displayResult never overwrites a newer song', async () => {
+    const { panel } = loadPanel();
+    const song = (id) => ({
+      title: id, artist: 'A', content: 'DO SOL', url: `https://song/${id}`,
+      notation: 'italian', chordFormat: 'heuristic', source: 'accordiespartiti.it'
+    });
+    // Slow down the first displayResult's storage reads (favorites + recents), so it
+    // resumes only after the newer one has finished — the real "quick video change" case.
+    const realGet = global.chrome.storage.local.get;
+    let delayed = 2;
+    global.chrome.storage.local.get = async (key) => {
+      if (delayed > 0) { delayed--; await new Promise(r => setTimeout(r, 20)); }
+      return realGet(key);
+    };
+
+    const stale = panel.displayResult(song('old'));
+    await panel.openLibraryEntry(song('new'));
+    await stale;
+
+    assert.equal(panel.state.sourceUrl, 'https://song/new');
+  });
+
   await t.test('formatTranspose formats with an explicit sign only for positive values', () => {
     const { panel } = loadPanel();
     assert.equal(panel.formatTranspose(3), '+3');

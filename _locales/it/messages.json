@@ -52,7 +52,6 @@
     "message": "Accordi non trovati per \"$QUERY$\"",
     "placeholders": { "query": { "content": "$1" } }
   },
-  "contentUnavailable": { "message": "Contenuto non disponibile" },
   "unknownTitle": { "message": "Titolo sconosciuto" },
 
   "exportSummary": {

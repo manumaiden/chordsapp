@@ -7,13 +7,6 @@ test('chord detection and transpose', async (t) => {
   await t.test('"marked" format (Ultimate Guitar): uses [ch] markers, no heuristic', async (t2) => {
     const { panel } = loadPanel();
 
-    await t2.test('historical bug: "Chorus" used to be wrongly recognized as an English chord', () => {
-      // Reproduces the pre-fix heuristic behavior to demonstrate the bug that the
-      // "marked" format eliminates at the root.
-      assert.equal(panel.isChordLine('Chorus', 'english'), true);
-      assert.equal(panel.transposeLine('Chorus', 'english', 2), 'Dhorus');
-    });
-
     await t2.test('parseUGMarkup preserves [ch] tags, only strips [tab]', () => {
       const raw = '[tab][ch]C[/ch] [ch]Am[/ch][/tab]';
       assert.equal(panel.parseUGMarkup(raw), '[ch]C[/ch] [ch]Am[/ch]');
@@ -45,15 +38,15 @@ test('chord detection and transpose', async (t) => {
     const { panel } = loadPanel();
 
     await t2.test('a line of Italian chords only is recognized', () => {
-      assert.equal(panel.isChordLine('DO SOL LAm FA', 'italian'), true);
+      assert.equal(panel.isChordLine('DO SOL LAm FA'), true);
     });
 
     await t2.test('a normal text line is not recognized as chords', () => {
-      assert.equal(panel.isChordLine('Sto pensando a te', 'italian'), false);
+      assert.equal(panel.isChordLine('Sto pensando a te'), false);
     });
 
     await t2.test('transposeLine correctly shifts Italian notes', () => {
-      assert.equal(panel.transposeLine('DO SOL LAm FA', 'italian', 2), 'RE LA SIm SOL');
+      assert.equal(panel.transposeLine('DO SOL LAm FA', 2), 'RE LA SIm SOL');
     });
   });
 });

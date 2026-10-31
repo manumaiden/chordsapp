@@ -1,18 +1,16 @@
 {
   "manifest_version": 3,
   "name": "ChordsApp",
-  "version": "1.6.3",
+  "version": "1.6.4",
   "default_locale": "it",
   "description": "__MSG_extDescription__",
   "permissions": [
     "sidePanel",
-    "storage",
-    "activeTab"
+    "storage"
   ],
   "host_permissions": [
-    "*://*.youtube.com/*",
-    "*://*.accordiespartiti.it/*",
-    "*://*.ultimate-guitar.com/*"
+    "https://*.accordiespartiti.it/*",
+    "https://*.ultimate-guitar.com/*"
   ],
   "background": {
     "service_worker": "background.js"

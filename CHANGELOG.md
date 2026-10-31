@@ -5,6 +5,22 @@ Format: [Semantic Versioning](https://semver.org/) — MAJOR.MINOR.PATCH
 
 ---
 
+## [1.6.4] — 2026-10-31
+
+### Fixed
+- Only the YouTube tab you're looking at drives the panel: a background tab's autoplay no longer replaces the song you're playing, and switching back to a tab brings its video back
+- Channel, search and home pages on YouTube no longer start chord searches
+- Library import now skips malformed entries and reports a failure if the library can't be saved
+- Clearer, localized error message when a selected result can't be loaded
+- The library no longer closes by itself when a search finishes in the background
+- Better title cleanup for `(feat. X)`, `ft X`, `| Official Video`, `(Official Video HD)`
+
+### Changed
+- Fewer permissions: removed `activeTab` and the youtube.com host permission; chord sites limited to `https://`
+- Internal cleanup (dead code removed); test suite grown to 50 tests
+
+---
+
 ## [1.6.3] — 2026-08-25
 
 ### Added

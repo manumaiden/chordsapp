@@ -82,13 +82,13 @@ test('library: favorites, recents, most played', async (t) => {
 
   await t.test('importLibraryData: non-destructive merge, conflict resolved by most recent savedAt', async () => {
     const { panel } = loadPanel();
-    await panel.setList(panel.LIBRARY_KEYS.favorites, [{ title: 'Old', url: 'https://a', savedAt: 100 }]);
+    await panel.setList(panel.LIBRARY_KEYS.favorites, [{ title: 'Old', url: 'https://a', content: 'DO', savedAt: 100 }]);
 
     const result = await panel.importLibraryData({
       format: 'chordsapp-library',
       favorites: [
-        { title: 'New (imported)', url: 'https://a', savedAt: 200 },
-        { title: 'B', url: 'https://b', savedAt: 50 }
+        { title: 'New (imported)', url: 'https://a', content: 'RE', savedAt: 200 },
+        { title: 'B', url: 'https://b', content: 'MI', savedAt: 50 }
       ],
       recents: [],
       playStats: []
@@ -99,5 +99,31 @@ test('library: favorites, recents, most played', async (t) => {
     assert.equal(favs.find(f => f.url === 'https://a').title, 'New (imported)');
     assert.equal(favs.filter(f => f.url === 'https://a').length, 1, 'no duplicates by url');
     assert.ok(favs.some(f => f.url === 'https://b'));
+  });
+
+  await t.test('importLibraryData: drops entries the panel could not open, coerces count', async () => {
+    const { panel } = loadPanel();
+    const result = await panel.importLibraryData({
+      format: 'chordsapp-library',
+      favorites: [
+        { title: 'Ok', url: 'https://ok', content: 'DO SOL' },
+        { title: 'No content', url: 'https://bad1', content: 123 },
+        { title: 'Script url', url: 'javascript:alert(1)', content: 'x' },
+        null
+      ],
+      playStats: [{ title: 'S', url: 'https://s', content: 'x', count: '5' }]
+    });
+    assert.equal(result.favorites, 1);
+    const stats = await panel.getList(panel.LIBRARY_KEYS.playStats);
+    assert.strictEqual(stats[0].count, 5, 'a string count must not turn "5"+1 into "51" later');
+  });
+
+  await t.test('importLibraryData: a storage write failure is reported, not swallowed', async () => {
+    const { panel } = loadPanel();
+    global.chrome.storage.local.set = async () => { throw new Error('QUOTA_BYTES quota exceeded'); };
+    await assert.rejects(() => panel.importLibraryData({
+      format: 'chordsapp-library',
+      favorites: [{ title: 'Ok', url: 'https://ok', content: 'DO' }]
+    }), /quota/);
   });
 });

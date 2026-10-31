@@ -1,4 +1,4 @@
-# ChordsApp `v1.6.3`
+# ChordsApp `v1.6.4`
 
 A Chrome extension that shows guitar chords in a side panel while you watch YouTube. One browser, no duplicate tabs.
 

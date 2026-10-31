@@ -58,7 +58,7 @@ const PLAYSTATS_TOP_N = 10;
 // bump in manifest.json (same discipline as CHANGELOG.md/README.md/CLAUDE.md).
 // The version number itself must never be updated here: it's read dynamically
 // from chrome.runtime.getManifest(), the single source of truth.
-const RELEASE_DATE = '25082026';
+const RELEASE_DATE = '31102026';
 
 function formatVersionTag(version, releaseDate) {
   return `version ${version} (${releaseDate}) by manumaiden`;
@@ -135,20 +135,23 @@ document.addEventListener('DOMContentLoaded', async () => {
       $('search-input').value = cleanTitle(title);
       searchAndDisplay(title);
     }
+    // Single refresh point for every library write (add/remove/import/recents)
+    if (area === 'local' && (changes.favorites || changes.recents || changes.playStats)) {
+      renderLibraryPanel();
+      refreshIdleLibraryPreview();
+    }
   });
 });
 
 function setupListeners() {
-  $('search-btn').addEventListener('click', () => {
+  // A manual search is an explicit user action: it also closes the library overlay
+  const manualSearch = () => {
     const q = $('search-input').value.trim();
-    if (q) searchAndDisplay(q);
-  });
-
-  $('search-input').addEventListener('keypress', (e) => {
-    if (e.key === 'Enter') {
-      const q = $('search-input').value.trim();
-      if (q) searchAndDisplay(q);
-    }
+    if (q) { closeLibrary(); searchAndDisplay(q); }
+  };
+  $('search-btn').addEventListener('click', manualSearch);
+  $('search-input').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.isComposing) manualSearch();
   });
 
   $('transpose-up').addEventListener('click',    () => adjustTranspose(+1));
@@ -350,8 +353,6 @@ async function removePlayStat(entry) {
   let stats = await getList(LIBRARY_KEYS.playStats);
   stats = stats.filter(s => s.url !== entry.url);
   await setList(LIBRARY_KEYS.playStats, stats);
-  renderLibraryPanel();
-  refreshIdleLibraryPreview();
 }
 
 // ─── Library export / import (JSON) ──────────────────────────────────────────
@@ -393,10 +394,16 @@ function mergeByUrl(existing, incoming, pickWinner) {
   return Array.from(map.values());
 }
 
+// Imported files are untrusted: keep only entries the panel can actually open later
+// (a non-string content would crash renderChords() every time that song is opened).
+const isValidEntry = (e) =>
+  typeof e?.url === 'string' && e.url.startsWith('https://') && typeof e.content === 'string';
+const validEntries = (list) => (Array.isArray(list) ? list.filter(isValidEntry) : []);
+
 async function importLibraryData(data) {
-  const incomingFavorites = Array.isArray(data.favorites) ? data.favorites : [];
-  const incomingRecents = Array.isArray(data.recents) ? data.recents : [];
-  const incomingPlayStats = Array.isArray(data.playStats) ? data.playStats : [];
+  const incomingFavorites = validEntries(data.favorites);
+  const incomingRecents = validEntries(data.recents);
+  const incomingPlayStats = validEntries(data.playStats).map(s => ({ ...s, count: Number(s.count) || 1 }));
 
   const [existingFavorites, existingRecents, existingPlayStats] = await Promise.all([
     getList(LIBRARY_KEYS.favorites),
@@ -416,11 +423,13 @@ async function importLibraryData(data) {
   mergedPlayStats.sort((a, b) => (b.count ?? 0) - (a.count ?? 0));
   mergedPlayStats = mergedPlayStats.slice(0, PLAYSTATS_MAX);
 
-  await Promise.all([
-    setList(LIBRARY_KEYS.favorites, mergedFavorites),
-    setList(LIBRARY_KEYS.recents, mergedRecents),
-    setList(LIBRARY_KEYS.playStats, mergedPlayStats)
-  ]);
+  // A single write, not setList(): a failure (e.g. quota exceeded) must reach
+  // handleImportFile() and be reported, never swallowed behind a "complete" message.
+  await chrome.storage.local.set({
+    [LIBRARY_KEYS.favorites]: mergedFavorites,
+    [LIBRARY_KEYS.recents]: mergedRecents,
+    [LIBRARY_KEYS.playStats]: mergedPlayStats
+  });
 
   return { favorites: mergedFavorites.length, recents: mergedRecents.length, playStats: mergedPlayStats.length };
 }
@@ -439,8 +448,6 @@ async function handleImportFile(e) {
     }
 
     const result = await importLibraryData(data);
-    renderLibraryPanel();
-    refreshIdleLibraryPreview();
     refreshFavoriteButton();
     showLibraryIOStatus(t('importSummary', [String(result.favorites), String(result.recents), String(result.playStats)]));
   } catch (err) {
@@ -473,8 +480,6 @@ async function toggleFavorite() {
     : [currentLibraryEntry(), ...favorites];
   await setList(LIBRARY_KEYS.favorites, favorites);
   updateFavoriteButtonUI(!exists);
-  renderLibraryPanel();
-  refreshIdleLibraryPreview();
 }
 
 async function removeFavorite(entry) {
@@ -482,16 +487,12 @@ async function removeFavorite(entry) {
   favorites = favorites.filter(f => f.url !== entry.url);
   await setList(LIBRARY_KEYS.favorites, favorites);
   if (state.sourceUrl === entry.url) updateFavoriteButtonUI(false);
-  renderLibraryPanel();
-  refreshIdleLibraryPreview();
 }
 
 async function removeRecent(entry) {
   let recents = await getList(LIBRARY_KEYS.recents);
   recents = recents.filter(r => r.url !== entry.url);
   await setList(LIBRARY_KEYS.recents, recents);
-  renderLibraryPanel();
-  refreshIdleLibraryPreview();
 }
 
 async function refreshFavoriteButton() {
@@ -514,6 +515,7 @@ function openLibrary() {
 }
 
 function closeLibrary() {
+  $('state-library').classList.add('hidden');
   showState(currentStateName);
 }
 
@@ -521,7 +523,8 @@ function closeLibrary() {
 function openLibraryEntry(entry) {
   ++searchToken; // invalidates any network searches still in flight
   stopScroll();
-  displayResult(entry);
+  closeLibrary();
+  return displayResult(entry);
 }
 
 function buildLibraryItem(entry, { removable = false, onRemove, showCount = false } = {}) {
@@ -643,44 +646,33 @@ function showResults(candidates, query) {
   const list = $('results-list');
   list.innerHTML = '';
 
-  candidates.forEach(c => {
-    const li = document.createElement('li');
-    li.className = 'result-item';
-    li.textContent = c.label || slugToLabel(c.url);
-    li.addEventListener('click', async () => {
-      const myToken = ++searchToken; // the click is a new user action, it becomes the current search
-      showState('loading');
-      try {
-        const result = await fetchChordPage(c.url);
-        if (myToken !== searchToken) return;
-        if (result) { displayResult(result); setCachedResult(cacheKey, result); }
-        else showError(t('contentUnavailable'), query);
-      } catch (e) {
-        if (myToken !== searchToken) return;
-        showError(e.message, query);
-      }
-    });
-    list.appendChild(li);
-  });
-
-  // Ultimate Guitar fallback option at the bottom of the list
-  const ugLi = document.createElement('li');
-  ugLi.className = 'result-item result-item--ug';
-  ugLi.textContent = t('searchOnUG');
-  ugLi.addEventListener('click', async () => {
+  // The click is a new user action, it becomes the current search. Technical errors
+  // (HTTP status, parser details) go to the console, the user gets a localized message.
+  const loadFrom = async (fetchResult) => {
     const myToken = ++searchToken;
     showState('loading');
     try {
-      const result = await fetchFromUltimateGuitar(query);
+      const result = await fetchResult();
       if (myToken !== searchToken) return;
-      if (result) { displayResult(result); setCachedResult(cacheKey, result); }
-      else showError(t('chordsNotFoundFor', [query]), query);
+      if (result) { displayResult(result); setCachedResult(cacheKey, result); return; }
     } catch (e) {
-      if (myToken !== searchToken) return;
-      showError(e.message, query);
+      console.warn('[ChordsApp] result click:', e.message);
     }
-  });
-  list.appendChild(ugLi);
+    if (myToken !== searchToken) return;
+    showError(t('chordsNotFoundFor', [query]), query);
+  };
+
+  const addItem = (className, text, fetchResult) => {
+    const li = document.createElement('li');
+    li.className = className;
+    li.textContent = text;
+    li.addEventListener('click', () => loadFrom(fetchResult));
+    list.appendChild(li);
+  };
+
+  candidates.forEach(c => addItem('result-item', c.label || slugToLabel(c.url), () => fetchChordPage(c.url)));
+  // Ultimate Guitar fallback option at the bottom of the list
+  addItem('result-item result-item--ug', t('searchOnUG'), () => fetchFromUltimateGuitar(query));
 
   showState('results');
 }
@@ -774,7 +766,7 @@ async function fetchFromUltimateGuitar(query) {
   const tabDoc = parseHTML(await res2.text());
   const tabData = parseJsStore(tabDoc);
   const tabView = tabData?.store?.page?.data?.tab_view;
-  if (!tabView) throw new Error('Nessun tab_view nel js-store');
+  if (!tabView) throw new Error('no tab_view in js-store');
 
   const raw = tabView.wiki_tab?.content ?? '';
   const content = parseUGMarkup(raw);
@@ -846,7 +838,7 @@ function renderChords() {
   const text = state.transpose !== 0
     ? (isMarked
         ? transposeMarkedText(state.rawContent, state.transpose)
-        : transposeText(state.rawContent, state.notation, state.transpose))
+        : transposeText(state.rawContent, state.transpose))
     : state.rawContent;
 
   const pre = document.createElement('pre');
@@ -855,9 +847,7 @@ function renderChords() {
   const html = text.split('\n').map(line =>
     isMarked
       ? colorizeMarkedLine(line)
-      : (isChordLine(line, state.notation)
-          ? colorizeChordLine(line, state.notation)
-          : escapeHtml(line))
+      : (isChordLine(line) ? colorizeChordLine(line) : escapeHtml(line))
   ).join('\n');
 
   pre.innerHTML = html;
@@ -902,13 +892,13 @@ function transposeMarkedText(text, semitones) {
   });
 }
 
-// ─── Chord coloring ──────────────────────────────────────────────────────
-function colorizeChordLine(line, notation) {
-  const pat = notation === 'italian'
-    ? `(${IT_ROOT_PAT})[a-zA-Z0-9#+°øΔ]*(\/[A-Za-z0-9#b]+)?`
-    : `(C#|Db|D#|Eb|F#|Gb|G#|Ab|A#|Bb|[CDEFGAB])[a-zA-Z0-9#+°øΔ]*(\/[A-Za-z0-9#b]+)?`;
-
-  const regex = new RegExp(pat, 'g');
+// ─── Chord coloring/transpose, "heuristic" format ───────────────────────────
+// Italian notation only: it's the only source without chord markers
+// (accordiespartiti.it). English content always comes from Ultimate Guitar in the
+// "marked" format above — the English heuristic was removed in v1.6.4, it could
+// never be reached anymore and turned lines like "Chorus" into chords.
+function colorizeChordLine(line) {
+  const regex = new RegExp(`(${IT_ROOT_PAT})[a-zA-Z0-9#+°øΔ]*(\/[A-Za-z0-9#b]+)?`, 'g');
   let result = '';
   let lastIndex = 0;
   let match;
@@ -934,42 +924,31 @@ function adjustTranspose(delta, reset = false) {
   persistTranspose();
 }
 
-function transposeText(text, notation, semitones) {
+function transposeText(text, semitones) {
   const norm = ((semitones % 12) + 12) % 12;
   if (norm === 0) return text;
 
   return text.split('\n').map(line =>
-    isChordLine(line, notation) ? transposeLine(line, notation, norm) : line
+    isChordLine(line) ? transposeLine(line, norm) : line
   ).join('\n');
 }
 
-function isChordLine(line, notation) {
+function isChordLine(line) {
   const trimmed = line.trim();
   if (!trimmed || trimmed.startsWith('[')) return false;
   const tokens = trimmed.split(/\s+/).filter(Boolean);
-  return tokens.length > 0 && tokens.every(t => isChordToken(t, notation));
+  return tokens.length > 0 && tokens.every(isChordToken);
 }
 
-function isChordToken(token, notation) {
-  const base = token.split('/')[0];
-  if (notation === 'italian') {
-    return new RegExp(`^(${IT_ROOT_PAT})[a-zA-Z0-9#+°øΔ]*$`).test(base);
-  }
-  return /^[A-G][#b]?[a-zA-Z0-9#+°øΔ]*$/.test(base);
+function isChordToken(token) {
+  return new RegExp(`^(${IT_ROOT_PAT})[a-zA-Z0-9#+°øΔ]*$`).test(token.split('/')[0]);
 }
 
-function transposeLine(line, notation, semitones) {
-  if (notation === 'italian') {
-    return line.replace(new RegExp(IT_ROOT_PAT, 'g'), root => {
-      const semi = IT_NOTE_TO_SEMI[root];
-      if (semi === undefined) return root;
-      return IT_SEMI_TO_NOTE[((semi + semitones) % 12 + 12) % 12];
-    });
-  }
-  return line.replace(new RegExp(EN_ROOT_PAT, 'g'), root => {
-    const semi = EN_NOTE_TO_SEMI[root];
+function transposeLine(line, semitones) {
+  return line.replace(new RegExp(IT_ROOT_PAT, 'g'), root => {
+    const semi = IT_NOTE_TO_SEMI[root];
     if (semi === undefined) return root;
-    return EN_SEMI_TO_NOTE[((semi + semitones) % 12 + 12) % 12];
+    return IT_SEMI_TO_NOTE[((semi + semitones) % 12 + 12) % 12];
   });
 }
 
@@ -1044,7 +1023,8 @@ function parseHTML(html) {
 
 function cleanTitle(title) {
   return title
-    .replace(/\(official\s*(music\s*)?video\)/gi, '')
+    .replace(/\(official\s*(music\s*)?video[^)]*\)/gi, '')
+    .replace(/\s*\|\s*official[^|]*$/i, '')
     .replace(/\(official\s*audio\)/gi, '')
     .replace(/\(official\s*lyric\s*video\)/gi, '')
     .replace(/\(lyrics?\)/gi, '')
@@ -1056,14 +1036,19 @@ function cleanTitle(title) {
     .replace(/\[official[^\]]*\]/gi, '')
     .replace(/[([]\s*(hd|4k)\s*[)\]]/gi, '')
     .replace(/\(\d{4}\)/g, '')
-    .replace(/\bft\..*/gi, '')
-    .replace(/\bfeat\..*/gi, '')
+    // also eats the opening bracket of "(feat. X)"; "feat" needs the dot ("Little Feat")
+    .replace(/\s*[([]?\s*\b(?:ft\.|ft\s|feat\.).*$/i, '')
     .replace(/\s{2,}/g, ' ')
     .trim();
 }
 
 function showState(name) {
-  if (name !== 'library') currentStateName = name; // the library is an overlay, not a "real" state
+  if (name !== 'library') {
+    currentStateName = name; // the library is an overlay, not a "real" state
+    // An async result (search, video change) arriving while the library is open must
+    // not close it under the user: it's shown when the library is closed (closeLibrary()).
+    if (!$('state-library').classList.contains('hidden')) return;
+  }
   ['idle', 'loading', 'error', 'results', 'result', 'library'].forEach(s => {
     const el = $(`state-${s}`);
     if (el) el.classList.toggle('hidden', s !== name);
@@ -1099,7 +1084,7 @@ if (typeof module !== 'undefined' && module.exports) {
     // persistent key/font
     getSavedTranspose, persistTranspose, formatTranspose, loadSettings, saveFontSize,
     // rendering/main flow
-    displayResult, renderChords, applyI18n, t,
+    displayResult, openLibraryEntry, renderChords, applyI18n, t,
     // network retry (added in this session)
     fetchWithRetry
   };

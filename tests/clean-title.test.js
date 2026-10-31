@@ -35,6 +35,18 @@ test('cleanTitle', async (t) => {
     assert.equal(panel.cleanTitle('Song Title (2023)'), 'Song Title');
   });
 
+  await t.test('removes featuring without leaving a dangling bracket', () => {
+    assert.equal(panel.cleanTitle('Artist - Song (feat. Other)'), 'Artist - Song');
+    assert.equal(panel.cleanTitle('Artist - Song ft. Other'), 'Artist - Song');
+    assert.equal(panel.cleanTitle('Artist - Song ft Other'), 'Artist - Song');
+    assert.equal(panel.cleanTitle('Little Feat - Dixie Chicken'), 'Little Feat - Dixie Chicken', '"Feat" without a dot is a word, not featuring');
+  });
+
+  await t.test('removes "| Official Video" and "(Official Video HD)"', () => {
+    assert.equal(panel.cleanTitle('Artist - Song | Official Video'), 'Artist - Song');
+    assert.equal(panel.cleanTitle('Artist - Song (Official Video HD)'), 'Artist - Song');
+  });
+
   await t.test('multiple suffix combination', () => {
     assert.equal(panel.cleanTitle('Song Title (Official Video) (HD) (2023)'), 'Song Title');
   });

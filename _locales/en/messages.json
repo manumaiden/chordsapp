@@ -52,7 +52,6 @@
     "message": "Chords not found for \"$QUERY$\"",
     "placeholders": { "query": { "content": "$1" } }
   },
-  "contentUnavailable": { "message": "Content unavailable" },
   "unknownTitle": { "message": "Unknown title" },
 
   "exportSummary": {
