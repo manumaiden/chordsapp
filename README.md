@@ -1,4 +1,4 @@
-# ChordsApp `v1.6.4`
+# ChordsApp `v1.7.0`
 
 A Chrome extension that shows guitar chords in a side panel while you watch YouTube. One browser, no duplicate tabs.
 
@@ -29,6 +29,8 @@ The library (☰) keeps favorites, recent songs, and most played — all stored 
 - **Library export/import** in JSON (favorites + recents + stats), useful as a backup or to move your library to another computer
 - **Italian/English**: the interface automatically follows the browser's language
 - Keyboard/screen-reader accessible (`aria-label` on every control)
+- **Other versions** (⇄): if the chords that opened aren't the right version, pick another one from the list — the choice is remembered for that YouTube video and opens instantly next time
+- **DO ↔ C notation**: show any song's chords in Italian (DO RE MI) or English (C D E) notation, aligned with the lyrics; the choice is remembered
 - **Persistent text size and key**: the chosen font size stays set between sessions; the key of every saved song (favorites/recents) is remembered and automatically restored when reopening it
 - **Automatic retry** on transient network errors, before showing an error message
 

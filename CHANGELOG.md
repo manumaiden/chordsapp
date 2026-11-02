@@ -5,6 +5,15 @@ Format: [Semantic Versioning](https://semver.org/) — MAJOR.MINOR.PATCH
 
 ---
 
+## [1.7.0] — 2026-11-02
+
+### Added
+- **Other versions (⇄)**: if the chords that opened aren't the right version, pick another one from the list (every match from accordiespartiti.it plus Ultimate Guitar), with a way back to the current song
+- **Your pick is remembered per YouTube video**: the next time that video plays, the chosen version opens instantly — no search, no network
+- **DO ↔ C notation toggle**: show any song's chords in Italian (DO RE MI) or English (C D E) notation, kept aligned with the lyrics; the choice is remembered
+
+---
+
 ## [1.6.4] — 2026-10-31
 
 ### Fixed

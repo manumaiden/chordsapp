@@ -392,6 +392,13 @@ header {
   color: #f5a623;
 }
 
+/* "Back to current song" entry at the top of the "Other versions" list */
+.result-item--back {
+  color: #7ac27a;
+  border-style: dashed;
+  margin-bottom: 4px;
+}
+
 /* ── Library (favorites/recents) ── */
 #state-library {
   align-items: stretch;
@@ -514,6 +521,14 @@ header {
 #favorite-toggle.active {
   color: #f5a623 !important;
   border-color: #f5a623 !important;
+}
+
+#notation-toggle {
+  width: auto !important;
+  min-width: 22px;
+  padding: 0 4px;
+  font-size: 10px !important;
+  font-weight: 700;
 }
 
 /* ── Chord highlight ── */

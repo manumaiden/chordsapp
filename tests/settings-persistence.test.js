@@ -4,16 +4,18 @@ const assert = require('node:assert/strict');
 const { loadPanel } = require('./helpers/load-panel');
 
 test('font size and per-song key persistence', async (t) => {
-  await t.test('saveFontSize + loadSettings: font size survives a panel "restart"', async () => {
+  await t.test('saveSettings + loadSettings: font size and notation survive a panel "restart"', async () => {
     const { panel, store } = loadPanel();
     panel.state.fontSize = 21;
-    panel.saveFontSize();
+    panel.state.displayNotation = 'english';
+    panel.saveSettings();
 
     // Simulates reopening the panel: fresh state instance, same underlying storage.
     const { panel: reopened } = loadPanel({ store });
     assert.equal(reopened.state.fontSize, 13, 'before loadSettings the default remains');
     await reopened.loadSettings();
     assert.equal(reopened.state.fontSize, 21, 'after loadSettings it recovers the saved value');
+    assert.equal(reopened.state.displayNotation, 'english', 'the notation preference is restored too');
   });
 
   await t.test('loadSettings does not touch the default when nothing is saved', async () => {

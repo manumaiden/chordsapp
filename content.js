@@ -24,7 +24,9 @@
   function sendTitle(title) {
     if (!title || title === lastSentTitle) return;
     lastSentTitle = title;
-    chrome.runtime.sendMessage({ type: 'VIDEO_TITLE', title }).catch(() => {});
+    // The video id lets the panel remember the chord version picked for this video
+    const videoId = new URLSearchParams(location.search).get('v') || '';
+    chrome.runtime.sendMessage({ type: 'VIDEO_TITLE', title, videoId }).catch(() => {});
   }
 
   function tryNotify() {

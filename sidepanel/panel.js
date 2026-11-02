@@ -28,8 +28,12 @@ const state = {
   chordFormat: 'heuristic',   // 'marked' (chords delimited by the source, e.g. UG) | 'heuristic' (detected via regex)
   sourceUrl: '',
   transpose: 0,
-  fontSize: 13
+  fontSize: 13,
+  displayNotation: null       // null = as the source; 'italian' | 'english' once the user picks one (global)
 };
+
+// Query/video behind the song on screen, reused by "Other versions"
+let lastSearch = { query: '', videoId: null };
 
 // Last "real" state shown (idle/loading/error/results/result) — the library is an
 // overlay: closing it should return here, not always to 'idle'.
@@ -58,7 +62,7 @@ const PLAYSTATS_TOP_N = 10;
 // bump in manifest.json (same discipline as CHANGELOG.md/README.md/CLAUDE.md).
 // The version number itself must never be updated here: it's read dynamically
 // from chrome.runtime.getManifest(), the single source of truth.
-const RELEASE_DATE = '31102026';
+const RELEASE_DATE = '02112026';
 
 function formatVersionTag(version, releaseDate) {
   return `version ${version} (${releaseDate}) by manumaiden`;
@@ -69,20 +73,24 @@ function renderVersionTag() {
   $('version-tag').textContent = formatVersionTag(version, RELEASE_DATE);
 }
 
-// ─── Persistent settings (font size, global) ──────────────────────
+// ─── Persistent settings (font size + chord notation, global) ─────────────
 const SETTINGS_KEY = 'settings';
 
 async function loadSettings() {
   try {
     const { [SETTINGS_KEY]: settings } = await chrome.storage.local.get(SETTINGS_KEY);
     if (settings?.fontSize) state.fontSize = settings.fontSize;
+    if (settings?.notation) state.displayNotation = settings.notation;
   } catch (e) {
     console.warn('[ChordsApp] loadSettings:', e.message);
   }
 }
 
-function saveFontSize() {
-  chrome.storage.local.set({ [SETTINGS_KEY]: { fontSize: state.fontSize } }).catch(() => {});
+// Writes every setting together: they share one storage key
+function saveSettings() {
+  chrome.storage.local.set({
+    [SETTINGS_KEY]: { fontSize: state.fontSize, notation: state.displayNotation }
+  }).catch(() => {});
 }
 
 // ─── Search sequence (anti race-condition guard) ──────────────────────
@@ -120,20 +128,18 @@ document.addEventListener('DOMContentLoaded', async () => {
   await loadSettings();
   $('scroll-speed-val').textContent = scroll.speed;
 
-  const stored = await chrome.storage.session.get('videoTitle');
-  if (stored.videoTitle) {
-    $('search-input').value = cleanTitle(stored.videoTitle);
-    searchAndDisplay(stored.videoTitle);
+  const { video } = await chrome.storage.session.get('video');
+  if (video?.title) {
+    searchAndDisplay(video.title, video.id);
   } else {
     showState('idle');
     refreshIdleLibraryPreview();
   }
 
   chrome.storage.onChanged.addListener((changes, area) => {
-    if (area === 'session' && changes.videoTitle?.newValue) {
-      const title = changes.videoTitle.newValue;
-      $('search-input').value = cleanTitle(title);
-      searchAndDisplay(title);
+    const newVideo = changes.video?.newValue;
+    if (area === 'session' && newVideo?.title) {
+      searchAndDisplay(newVideo.title, newVideo.id);
     }
     // Single refresh point for every library write (add/remove/import/recents)
     if (area === 'local' && (changes.favorites || changes.recents || changes.playStats)) {
@@ -167,6 +173,8 @@ function setupListeners() {
   $('library-btn').addEventListener('click',   () => openLibrary());
   $('library-close').addEventListener('click', () => closeLibrary());
   $('favorite-toggle').addEventListener('click', () => toggleFavorite());
+  $('notation-toggle').addEventListener('click', () => toggleNotation());
+  $('other-versions').addEventListener('click', () => showOtherVersions());
 
   $('library-export-btn').addEventListener('click', () => exportLibrary());
   $('library-import-btn').addEventListener('click', () => $('library-import-input').click());
@@ -174,16 +182,24 @@ function setupListeners() {
 }
 
 // ─── Search and display ────────────────────────────────────────────────────
-async function searchAndDisplay(rawQuery) {
+// videoId: set only for searches started by a YouTube video (null for manual
+// searches, which must never be remembered as that video's chosen version).
+async function searchAndDisplay(rawQuery, videoId = null) {
   const query = cleanTitle(rawQuery);
   const myToken = ++searchToken;
   const cacheKey = query.toLowerCase();
+  lastSearch = { query, videoId: videoId || null };
 
   $('search-input').value = query;
   // The key is not reset here: displayResult() restores it from the saved value
   // for this song (or 0 if there isn't one), avoiding a "0" flash before restoring.
   stopScroll();
   showState('loading');
+
+  // A version the user picked for this video wins over any search (no network)
+  const chosen = videoId ? await getVideoChoice(videoId) : null;
+  if (myToken !== searchToken) return;
+  if (chosen) return displayResult(chosen);
 
   const cached = await getCachedResult(cacheKey);
   if (myToken !== searchToken) return; // superseded by a more recent search
@@ -206,7 +222,7 @@ async function searchAndDisplay(rawQuery) {
       console.warn('[ChordsApp] accordiespartiti.it fetch:', e.message);
     }
   } else if (candidates.length > 1) {
-    showResults(candidates, query);
+    showResults(candidates, query, videoId);
     return;
   }
 
@@ -244,6 +260,25 @@ async function setCachedResult(key, result) {
   } catch (e) {
     console.warn('[ChordsApp] cache write:', e.message);
   }
+}
+
+// ─── Per-video chosen version ────────────────────────────────────────────────
+// When the user picks a version from a results list opened for a YouTube video,
+// the whole result is stored under that video's id: the next time that video is
+// played it opens straight away, with no search and no network. Same shape and
+// cap logic as recents (most recent on top).
+const VIDEO_CHOICES_KEY = 'videoChoices';
+const VIDEO_CHOICES_MAX = 100;
+
+async function getVideoChoice(videoId) {
+  const choices = await getList(VIDEO_CHOICES_KEY);
+  return choices.find(c => c.videoId === videoId) ?? null;
+}
+
+async function saveVideoChoice(videoId, result) {
+  const choices = (await getList(VIDEO_CHOICES_KEY)).filter(c => c.videoId !== videoId);
+  choices.unshift({ ...result, videoId, savedAt: Date.now() });
+  await setList(VIDEO_CHOICES_KEY, choices.slice(0, VIDEO_CHOICES_MAX));
 }
 
 // ─── Library: favorites and recents ────────────────────────────────────────────
@@ -524,6 +559,9 @@ function openLibraryEntry(entry) {
   ++searchToken; // invalidates any network searches still in flight
   stopScroll();
   closeLibrary();
+  // No search behind a saved song: "Other versions" searches its title + artist,
+  // and the choice is not tied to any video
+  lastSearch = { query: cleanTitle([entry.title, entry.artist].filter(Boolean).join(' ')), videoId: null };
   return displayResult(entry);
 }
 
@@ -640,11 +678,21 @@ async function fetchChordPage(url) {
   return parseAcordiespartiti(doc, url);
 }
 
-// Shows the multiple-results list
-function showResults(candidates, query) {
+// Shows the multiple-results list. videoId: the picked version is remembered for
+// that video (null = manual search, nothing remembered). current: the song on
+// screen when opened via "Other versions", offered as a way back.
+function showResults(candidates, query, videoId = null, current = null) {
   const cacheKey = query.toLowerCase();
   const list = $('results-list');
   list.innerHTML = '';
+
+  if (current) {
+    const back = document.createElement('li');
+    back.className = 'result-item result-item--back';
+    back.textContent = t('backToSong');
+    back.addEventListener('click', () => { ++searchToken; displayResult(current); });
+    list.appendChild(back);
+  }
 
   // The click is a new user action, it becomes the current search. Technical errors
   // (HTTP status, parser details) go to the console, the user gets a localized message.
@@ -654,7 +702,12 @@ function showResults(candidates, query) {
     try {
       const result = await fetchResult();
       if (myToken !== searchToken) return;
-      if (result) { displayResult(result); setCachedResult(cacheKey, result); return; }
+      if (result) {
+        displayResult(result);
+        setCachedResult(cacheKey, result);
+        if (videoId) saveVideoChoice(videoId, result);
+        return;
+      }
     } catch (e) {
       console.warn('[ChordsApp] result click:', e.message);
     }
@@ -675,6 +728,25 @@ function showResults(candidates, query) {
   addItem('result-item result-item--ug', t('searchOnUG'), () => fetchFromUltimateGuitar(query));
 
   showState('results');
+}
+
+// "Other versions" (⇄): lists every accordiespartiti.it candidate for the song on
+// screen — even when the search had auto-opened the only one — plus the UG option.
+async function showOtherVersions() {
+  const { query, videoId } = lastSearch;
+  const current = currentLibraryEntry();
+  const myToken = ++searchToken;
+  stopScroll();
+  showState('loading');
+
+  let candidates = [];
+  try {
+    candidates = await fetchSearchCandidates(query);
+  } catch (e) {
+    console.warn('[ChordsApp] other versions:', e.message);
+  }
+  if (myToken !== searchToken) return;
+  showResults(candidates, query, videoId, current);
 }
 
 function slugToLabel(url) {
@@ -830,16 +902,26 @@ async function displayResult(result) {
   addToRecents(currentLibraryEntry());
   incrementPlayStat(currentLibraryEntry());
   refreshFavoriteButton();
+  updateNotationButtonUI(); // with no saved preference the shown notation follows the song
+}
+
+// Notation the chords are shown in: the user's global choice, else the source's
+function shownNotation() {
+  return state.displayNotation || state.notation;
 }
 
 function renderChords() {
   const isMarked = state.chordFormat === 'marked';
+  // Display-only conversion, applied after transposing: the stored content and the
+  // library entries always keep the source notation.
+  const convert = shownNotation() !== state.notation;
 
-  const text = state.transpose !== 0
+  let text = state.transpose !== 0
     ? (isMarked
         ? transposeMarkedText(state.rawContent, state.transpose)
         : transposeText(state.rawContent, state.transpose))
     : state.rawContent;
+  if (isMarked && convert) text = convertMarkedText(text, shownNotation() === 'italian');
 
   const pre = document.createElement('pre');
   pre.style.fontSize = `${state.fontSize}px`;
@@ -847,7 +929,9 @@ function renderChords() {
   const html = text.split('\n').map(line =>
     isMarked
       ? colorizeMarkedLine(line)
-      : (isChordLine(line) ? colorizeChordLine(line) : escapeHtml(line))
+      : (isChordLine(line)
+          ? colorizeChordLine(convert ? convertChordLine(line) : line)
+          : escapeHtml(line))
   ).join('\n');
 
   pre.innerHTML = html;
@@ -897,19 +981,60 @@ function transposeMarkedText(text, semitones) {
 // (accordiespartiti.it). English content always comes from Ultimate Guitar in the
 // "marked" format above — the English heuristic was removed in v1.6.4, it could
 // never be reached anymore and turned lines like "Chorus" into chords.
+// Only called on lines where every token is a chord (isChordLine), so each token is
+// wrapped whole — which also works once the line is converted to English notation.
 function colorizeChordLine(line) {
-  const regex = new RegExp(`(${IT_ROOT_PAT})[a-zA-Z0-9#+°øΔ]*(\/[A-Za-z0-9#b]+)?`, 'g');
-  let result = '';
-  let lastIndex = 0;
-  let match;
+  return escapeHtml(line).replace(/\S+/g, tok => `<span class="chord">${tok}</span>`);
+}
 
-  while ((match = regex.exec(line)) !== null) {
-    result += escapeHtml(line.slice(lastIndex, match.index));
-    result += `<span class="chord">${escapeHtml(match[0])}</span>`;
-    lastIndex = regex.lastIndex;
-  }
-  result += escapeHtml(line.slice(lastIndex));
-  return result;
+// ─── Notation conversion (DO↔C), display only ────────────────────────────────
+// Renames every chord root to the other notation (via the semitone tables, so
+// flats come out as sharps, same as transposing).
+function renameRoots(chord, toItalian) {
+  const [pat, toSemi, toNote] = toItalian
+    ? [EN_ROOT_PAT, EN_NOTE_TO_SEMI, IT_SEMI_TO_NOTE]
+    : [IT_ROOT_PAT, IT_NOTE_TO_SEMI, EN_SEMI_TO_NOTE];
+  return chord.replace(new RegExp(pat, 'g'), root =>
+    toSemi[root] === undefined ? root : toNote[toSemi[root]]);
+}
+
+// Keeps chords aligned with the lyrics below: a name that got longer/shorter
+// (SOL→G, C→DO) shrinks/grows the spaces that follow it, always keeping one.
+function fitSpaces(spaces, lengthDelta) {
+  return spaces ? ' '.repeat(Math.max(1, spaces.length - lengthDelta)) : spaces;
+}
+
+// Heuristic (Italian) chord line → English
+function convertChordLine(line) {
+  return line.replace(/(\S+)( *)/g, (_, chord, spaces) => {
+    const renamed = renameRoots(chord, false);
+    return renamed + fitSpaces(spaces, renamed.length - chord.length);
+  });
+}
+
+// Marked (UG) text: converts only inside [ch]...[/ch], lyrics are never touched
+function convertMarkedText(text, toItalian) {
+  return text.replace(/\[ch\](.*?)\[\/ch\]( *)/g, (_, chord, spaces) => {
+    const renamed = renameRoots(chord, toItalian);
+    return `[ch]${renamed}[/ch]` + fitSpaces(spaces, renamed.length - chord.length);
+  });
+}
+
+function toggleNotation() {
+  state.displayNotation = shownNotation() === 'italian' ? 'english' : 'italian';
+  saveSettings();
+  renderChords(); // reading position kept: no scroll reset here (see displayResult)
+  updateNotationButtonUI();
+}
+
+// The button shows the notation on screen; title/aria-label describe the switch
+function updateNotationButtonUI() {
+  const btn = $('notation-toggle');
+  const italian = shownNotation() === 'italian';
+  btn.textContent = italian ? 'DO' : 'C';
+  const label = italian ? t('notationToEnglish') : t('notationToItalian');
+  btn.title = label;
+  btn.setAttribute('aria-label', label);
 }
 
 function escapeHtml(str) {
@@ -991,7 +1116,7 @@ function adjustFont(delta) {
   state.fontSize = Math.max(10, Math.min(24, state.fontSize + delta));
   const pre = $('chords-content').querySelector('pre');
   if (pre) pre.style.fontSize = `${state.fontSize}px`;
-  saveFontSize();
+  saveSettings();
 }
 
 // ─── Utilities ────────────────────────────────────────────────────────────────
@@ -1082,7 +1207,10 @@ if (typeof module !== 'undefined' && module.exports) {
     getTopPlayed, removeFavorite, removeRecent, removePlayStat, toggleFavorite,
     isFavorite, mergeByUrl, importLibraryData, exportLibrary,
     // persistent key/font
-    getSavedTranspose, persistTranspose, formatTranspose, loadSettings, saveFontSize,
+    getSavedTranspose, persistTranspose, formatTranspose, loadSettings, saveSettings,
+    // notation conversion / per-video chosen version
+    convertChordLine, convertMarkedText, shownNotation, getVideoChoice, saveVideoChoice,
+    searchAndDisplay,
     // rendering/main flow
     displayResult, openLibraryEntry, renderChords, applyI18n, t,
     // network retry (added in this session)
